@@ -19,9 +19,12 @@
 
 package org.yccheok.jstock.gui.charting;
 
+import java.awt.BasicStroke;
+import java.awt.Stroke;
+import java.awt.Color;
+import java.awt.Paint;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.Frame;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ComponentEvent;
@@ -60,9 +63,11 @@ import org.jfree.chart.labels.StandardXYToolTipGenerator;
 import org.jfree.chart.plot.CombinedDomainXYPlot;
 import org.jfree.chart.plot.Plot;
 import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.plot.ValueMarker;
 import org.jfree.chart.renderer.xy.CandlestickRenderer;
 import org.jfree.chart.renderer.xy.StandardXYItemRenderer;
 import org.jfree.chart.renderer.xy.XYBarRenderer;
+import org.jfree.chart.renderer.xy.StandardXYBarPainter;
 import org.jfree.chart.renderer.xy.XYItemRenderer;
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.jfree.data.Range;
@@ -71,8 +76,10 @@ import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.data.time.TimeSeriesDataItem;
 import org.jfree.data.xy.*;
+import org.yccheok.jstock.charting.Bollinger;
 import org.yccheok.jstock.charting.ChartData;
 import org.yccheok.jstock.charting.MACD;
+import org.yccheok.jstock.charting.PPO;
 import org.yccheok.jstock.charting.TechnicalAnalysis;
 import org.yccheok.jstock.file.Statements;
 import org.yccheok.jstock.gui.JStockOptions;
@@ -90,10 +97,14 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
     public enum TA {
         SMA,
         EMA,
+        BBands,
         MACD,
         RSI,
         MFI,        
-        CCI,        
+        CCI,
+        PPO,
+        PercentB,
+        Bandwidth
     }
 
     public enum Type {
@@ -127,12 +138,9 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
     }
     
     /** Creates new form ChartJDialog */
-    public ChartJDialog(java.awt.Frame parent, String title, boolean modalNotUsed, StockHistoryServer stockHistoryServer) {                
+    public ChartJDialog(java.awt.Frame parent, String title, boolean modalNotUsed, StockHistoryServer stockHistoryServer) {
         super(title);
-        
-        this.parent = parent;
-        this.parent.addWindowListener(this);
-        
+        parent.addWindowListener(this);
         this.setIconImage(parent.getIconImage());
                 
         initComponents();
@@ -193,6 +201,10 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
         } else {
             this.jRadioButtonMenuItem4.setSelected(true);
         }
+        
+        //final ChartJDialogOptions chartJDialogOptions = JStock.instance().getChartJDialogOptions();
+        ChartJDialog.this.zoom(chartJDialogOptions.getZoom());
+        
     }
 
     public void windowActivated(WindowEvent e) {
@@ -223,14 +235,15 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
      * Build menu items for TA.
      */
     private void buildTAMenuItems() {
-        final int[] days = {14, 28, 50, 100, 200};
+        final int[] days = {9, 10, 12, 14, 20, 26, 28, 50, 100, 200};
         final MACD.Period[] macd_periods = {MACD.Period.newInstance(12, 26, 9)};
+        final PPO.Period[] ppo_periods = {PPO.Period.newInstance(9, 26, 9), PPO.Period.newInstance(12, 26, 9),PPO.Period.newInstance(5, 35, 5)};
         
         // day_keys, week_keys and month_keys should be having same length as
         // days.        
-        final String[] day_keys = {"ChartJDialog_14Days", "ChartJDialog_28Days", "ChartJDialog_50Days", "ChartJDialog_100Days", "ChartJDialog_200Days" };
-        final String[] week_keys = {"ChartJDialog_14Weeks", "ChartJDialog_28Weeks", "ChartJDialog_50Weeks", "ChartJDialog_100Weeks", "ChartJDialog_200Weeks" };
-        final String[] month_keys = {"ChartJDialog_14Months", "ChartJDialog_28Months", "ChartJDialog_50Months", "ChartJDialog_100Months", "ChartJDialog_200Months" };
+        final String[] day_keys = {"ChartJDialog_9Days", "ChartJDialog_10Days", "ChartJDialog_12Days", "ChartJDialog_14Days", "ChartJDialog_20Days", "ChartJDialog_26Days", "ChartJDialog_28Days", "ChartJDialog_50Days", "ChartJDialog_100Days", "ChartJDialog_200Days" };
+        final String[] week_keys = {"ChartJDialog_9Weeks", "ChartJDialog_10Weeks", "ChartJDialog_12Weeks", "ChartJDialog_14Weeks", "ChartJDialog_20Weeks", "ChartJDialog_26Weeks", "ChartJDialog_28Weeks", "ChartJDialog_50Weeks", "ChartJDialog_100Weeks", "ChartJDialog_200Weeks" };
+        final String[] month_keys = {"ChartJDialog_9Months", "ChartJDialog_10Months", "ChartJDialog_12Months", "ChartJDialog_14Months", "ChartJDialog_20Months", "ChartJDialog_26Months", "ChartJDialog_28Months", "ChartJDialog_50Months", "ChartJDialog_100Months", "ChartJDialog_200Months" };
         assert(days.length == day_keys.length);
         assert(days.length == week_keys.length);
         assert(days.length == week_keys.length);
@@ -243,30 +256,44 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
         assert(macd_periods.length == macd_week_keys.length);
         assert(macd_periods.length == macd_month_keys.length);
         
+        final String[] ppo_day_keys = {"ChartJDialog_9_26_9Days", "ChartJDialog_12_26_9Days", "ChartJDialog_5_35_5Days"};
+        final String[] ppo_week_keys = {"ChartJDialog_9_26_9Weeks", "ChartJDialog_12_26_9Weeks", "ChartJDialog_5_35_5Weeks"};
+        final String[] ppo_month_keys = {"ChartJDialog_9_26_9Months", "ChartJDialog_12_26_9Months", "ChartJDialog_5_35_5Months"};
+        assert(ppo_periods.length == ppo_day_keys.length);
+        assert(ppo_periods.length == ppo_week_keys.length);
+        assert(ppo_periods.length == ppo_month_keys.length);
+        
         String[] keys = null;
         String[] macd_keys = null;
+        String[] ppo_keys = null;
         if (this.getCurrentInterval() == Interval.Daily) {
             keys = day_keys;
             macd_keys = macd_day_keys;
+            ppo_keys = ppo_day_keys;
         } else if (this.getCurrentInterval() == Interval.Weekly) {
             keys = week_keys;
             macd_keys = macd_week_keys;
+            ppo_keys = ppo_week_keys;
         } else if (this.getCurrentInterval() == Interval.Monthly) {
             keys = month_keys;
             macd_keys = macd_month_keys;
+            ppo_keys = ppo_month_keys;
         } else {
             assert(false);
         }
         final TA[] tas = TA.values();
-        final String[] ta_keys = {"ChartJDialog_SMA", "ChartJDialog_EMA", "ChartJDialog_MACD", "ChartJDialog_RSI", "ChartJDialog_MFI", "ChartJDialog_CCI" };
-        final String[] ta_tip_keys = {"ChartJDialog_SimpleMovingAverage", "ChartJDialog_ExponentialMovingAverage", "ChartJDialog_MovingAverageConvergenceDivergence", "ChartJDialog_RelativeStrengthIndex", "ChartJDialog_MoneyFlowIndex", "ChartJDialog_CommodityChannelIndex" };
+        final String[] ta_keys = {"ChartJDialog_SMA", "ChartJDialog_EMA", "ChartJDialog_BBands", "ChartJDialog_MACD", "ChartJDialog_RSI", "ChartJDialog_MFI", "ChartJDialog_CCI", "ChartJDialog_PPO", "ChartJDialog_PercentB", "ChartJDialog_Bandwidth" };
+        final String[] ta_tip_keys = {"ChartJDialog_SimpleMovingAverage", "ChartJDialog_ExponentialMovingAverage", "ChartJDialog_BBands", "ChartJDialog_MovingAverageConvergenceDivergence", "ChartJDialog_RelativeStrengthIndex", "ChartJDialog_MoneyFlowIndex", "ChartJDialog_CommodityChannelIndex", "ChartJDialog_PercentPriceOscillator", "ChartJDialog_PercentB", "ChartJDialog_Bandwidth" };
         final String[] custom_message_keys = {
             "info_message_please_enter_number_of_days_for_SMA",
             "info_message_please_enter_number_of_days_for_EMA",
-            "dummy",
+            "dummy", "dummy",
             "info_message_please_enter_number_of_days_for_RSI",
             "info_message_please_enter_number_of_days_for_MFI",
-            "info_message_please_enter_number_of_days_for_CCI"
+            "info_message_please_enter_number_of_days_for_CCI",
+            "dummy",
+            "dummy",
+            "dummy"
         };
         final Map<TA, Set<Object>> m = new EnumMap<TA, Set<Object>>(TA.class);
         final int taExSize = JStock.instance().getChartJDialogOptions().getTAExSize();
@@ -304,6 +331,26 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
                     });
                     menu.add(item);
                 }
+            } else if (ta == TA.PPO) {
+                for (int j = 0, length3 = ppo_periods.length; j < length3; j++) {
+                    final int _j = j;
+                    final javax.swing.JCheckBoxMenuItem item = new javax.swing.JCheckBoxMenuItem();
+                    item.setText(GUIBundle.getString(ppo_keys[j]));
+                    if (m.containsKey(ta)) {
+                        if (m.get(ta).contains(ppo_periods[_j])) {
+                            item.setSelected(true);
+                        }
+                    }
+                    item.addActionListener(new java.awt.event.ActionListener() {
+                        @Override
+                        public void actionPerformed(java.awt.event.ActionEvent evt) {
+                            if (ta == TA.PPO) {
+                                updatePPO(ppo_periods[_j], item.isSelected());
+                            }
+                        }   
+                    });
+                    menu.add(item);
+                }
             } else {
                 for (int j = 0, length2 = days.length; j < length2; j++) {
                     final int _j = j;
@@ -323,6 +370,9 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
                             else if (ta == TA.EMA) {
                                 updateEMA(days[_j], item.isSelected());
                             }
+                            else if (ta == TA.BBands) {
+                                updateBBands(days[_j], item.isSelected());
+                            }
                             else if (ta == TA.MFI) {
                                 updateMFI(days[_j], item.isSelected());
                             }
@@ -331,6 +381,12 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
                             }
                             else if (ta == TA.CCI) {
                                 updateCCI(days[_j], item.isSelected());
+                            }
+                            else if (ta == TA.PercentB) {
+                                updatePercentB(days[_j], item.isSelected());
+                            }
+                            else if (ta == TA.Bandwidth) {
+                                updateBandwidth(days[_j], item.isSelected());
                             }
                         }
                     });
@@ -377,9 +433,9 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
             // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            if (ta != TA.MACD) {
+            //if (ta != TA.MACD) {
                 this.jMenu2.add(menu);
-            }
+            //}
         }   // for
         this.jMenu2.add(new javax.swing.JSeparator());
         javax.swing.JMenuItem item = new javax.swing.JMenuItem();
@@ -400,6 +456,9 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
         else if (ta == TA.EMA) {
             updateEMA(days, show);
         }
+        else if (ta == TA.BBands) {
+            updateBBands(days, show);
+        }
         else if (ta == TA.MFI) {
             updateMFI(days, show);
         }
@@ -408,6 +467,12 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
         }
         else if (ta == TA.CCI) {
             updateCCI(days, show);
+        }
+        else if (ta == TA.PercentB) {
+            updatePercentB(days, show);
+        }
+        else if (ta == TA.Bandwidth) {
+            updateBandwidth(days, show);
         }
     }
 
@@ -425,12 +490,16 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
             final TA ta = taEx.getTA();
             if (ta == TA.MACD) {
                 final MACD.Period period = (MACD.Period)taEx.getParameter();
-                ChartJDialog.this.updateMACD(period, true);                
+                ChartJDialog.this.updateMACD(period, true);   
+            } else if (ta == TA.PPO) {
+                final PPO.Period period = (PPO.Period)taEx.getParameter();
+                ChartJDialog.this.updatePPO(period, true);                
             } else {
                 final Integer day = (Integer)taEx.getParameter();
                 ChartJDialog.this.updateTA(ta, day, true);
             }
         }
+        ChartJDialog.this.zoom(chartJDialogOptions.getZoom());
     }
 
     public List<ChartData> getChartDatas() {
@@ -483,14 +552,9 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
         jMenu8 = new javax.swing.JMenu();
         jMenuItem7 = new javax.swing.JMenuItem();
 
-        setDefaultCloseOperation(javax.swing.WindowConstants.DO_NOTHING_ON_CLOSE);
+        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setAlwaysOnTop(true);
         setAutoRequestFocus(false);
-        addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent evt) {
-                formWindowClosing(evt);
-            }
-        });
         getContentPane().setLayout(new java.awt.BorderLayout(5, 5));
 
         jPanel4.setBorder(javax.swing.BorderFactory.createEmptyBorder(5, 5, 2, 5));
@@ -636,12 +700,12 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
 
         jMenu2.setText(bundle.getString("ChartJDialog_TechnicalAnalysis")); // NOI18N
         jMenu2.addMenuListener(new javax.swing.event.MenuListener() {
-            public void menuCanceled(javax.swing.event.MenuEvent evt) {
+            public void menuSelected(javax.swing.event.MenuEvent evt) {
+                jMenu2MenuSelected(evt);
             }
             public void menuDeselected(javax.swing.event.MenuEvent evt) {
             }
-            public void menuSelected(javax.swing.event.MenuEvent evt) {
-                jMenu2MenuSelected(evt);
+            public void menuCanceled(javax.swing.event.MenuEvent evt) {
             }
         });
         jMenuBar1.add(jMenu2);
@@ -918,6 +982,10 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
                 this.updateMACD((MACD.Period)taEx.parameter, false);
                 i--;                
             }
+            else if (taEx.ta == TA.PPO) {
+                this.updatePPO((PPO.Period)taEx.parameter, false);
+                i--;                
+            }
             else {
                 assert(false);
             }
@@ -1141,7 +1209,7 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
      */
     private void _zoom(int field, int amount) {
         this.chartPanel.restoreAutoBounds();
-
+        //System.out.println("Zoom chart " + this.getTitle());
         final int itemCount = this.priceTimeSeries.getItemCount();
         final Day day = (Day)this.priceTimeSeries.getDataItem(itemCount - 1).getPeriod();
         // Candle stick takes up half day space.
@@ -1209,7 +1277,8 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
         // The range must within the original chart range.
         min = Math.max(rangeAxisRange.getLowerBound(), min - tolerance);
         max = Math.min(rangeAxisRange.getUpperBound(), max + tolerance);
-
+        
+        //System.out.println("Zoom plot "+this.getPlot().getRangeAxis().getLabel());
         this.getPlot().getRangeAxis().setRange(min, max);
 
         if (this.getPlot().getRangeAxisCount() > 1) {
@@ -1219,6 +1288,34 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
             if (suggestedVolumneUpperBound < volumeUpperBound) {
                 this.getPlot().getRangeAxis(1).setRange(0, suggestedVolumneUpperBound);
             }
+        }
+        
+        // Adjust range axes of TA plots as well...
+        int start_plot_count=0;
+        if(this.getCurrentType()==Type.PriceVolume) start_plot_count=1;
+        for(int k=start_plot_count; k<=this.getPlotSize()-1; k++) {
+            min = Double.MAX_VALUE;
+            max = Double.MIN_VALUE;
+            //System.out.println("Zoom plot "+this.getPlot(k).getRangeAxis().getLabel());
+            //System.out.println("Dataset count "+this.getPlot(k).getDatasetCount());
+            for(int j=0; j<this.getPlot(k).getDatasetCount(); j++) {
+                final XYDataset mydataset = this.getPlot(k).getDataset(j);
+                //System.out.println("Series in dataset: "+mydataset.getSeriesCount());
+                if (mydataset!=null) for (int i = mydataset.getItemCount(0) - 1; i >= 0; i--) {
+                    if(mydataset.getYValue(0,i)>max) max = mydataset.getYValue(0,i);
+                    if(mydataset.getYValue(0,i)<min) min = mydataset.getYValue(0,i);
+                    if(mydataset.getXValue(0,i)<start) break;
+                }
+            }
+            tolerance = 0.05 * (max - min);
+            min = /*Math.max(this.getPlot(k).getRangeAxis().getRange().getLowerBound(),*/ min - tolerance/*)*/;
+            max = /*Math.min(this.getPlot(k).getRangeAxis().getRange().getUpperBound(),*/ max + tolerance/*)*/;
+            //System.out.println("Number of range axes for this plot: "+this.getPlot(k).getRangeAxisCount());
+            for (int i =0; i<this.getPlot(k).getRangeAxisCount(); i++) this.getPlot(k).getRangeAxis(i).setRange(min, max);
+            //System.out.println(this.getPlot(j).getRangeAxis().getLabel()+" minimum: "+min);
+            //System.out.println(this.getPlot(j).getRangeAxis().getLabel()+" maximum: "+max);
+            //System.out.println(i+" start "+start+" end "+end);
+            //System.out.println(mydataset.getX(0,mydataset.getItemCount(0) - 1)+" start "+start+" end "+end);
         }
     }
 
@@ -1285,12 +1382,6 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
             org.yccheok.jstock.charting.Utils.applyChartThemeEx(candlestickChart);
         }
     }//GEN-LAST:event_jRadioButtonMenuItem4ActionPerformed
-
-    private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
-        // To avoid memory leak.
-        parent.removeWindowListener(this);
-        this.dispose();
-    }//GEN-LAST:event_formWindowClosing
    
     /**
      * Creates a chart.
@@ -1320,7 +1411,7 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
             )
         );
         plot.setRenderer(0, renderer1);
-
+        
         final NumberAxis rangeAxis2 = new NumberAxis("Volume");
         rangeAxis2.setUpperMargin(1.00);  // to leave room for price line
         plot.setRangeAxis(1, rangeAxis2);
@@ -1381,26 +1472,33 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
     }
     
     private String getBestStockName() {
+        System.out.println("\nChartJDialog.getBestStockName()\n");
         final int num = stockHistoryServer.size();
         final Stock stock = stockHistoryServer.getStock(stockHistoryServer.getTimestamp(num - 1));
 
-        if (org.yccheok.jstock.engine.Utils.isNameImmutable()) {
+        /*if (org.yccheok.jstock.engine.Utils.isNameImmutable())*/ {
             final StockNameDatabase stockNameDatabase = JStock.instance().getStockNameDatabase();
+            System.out.println("ChartJDialog line 1464");
             if (stockNameDatabase != null) {
+                System.out.println("ChartJDialog line 1466");
                 final String name = stockNameDatabase.codeToName(stock.code);
+                //final String name=stock.symbol.toString();
                 if (name != null) {
+                    System.out.println("stockNameDatabase.codeToName( "+ stock.code + " ) = " + name);
                     return name;
                 }
             }
         }
 
         final String name = stock.getName();
+        //final String name=stock.symbol.toString();
         // For unknown reason, server may return us empty stock name.
         if (name.isEmpty()) {
             final Symbol symbol = stock.symbol;
             if (false == symbol.toString().isEmpty()) {
                 // Luckly. The symbol is not empty. Use it as replacement to
                 // name.
+                System.out.println("stock.symbol = "+stock.symbol);
                 return symbol.toString();
             }
             // Symbol from server is empty. We need to ask help from offline
@@ -1410,6 +1508,7 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
                 final Symbol s = stockInfoDatabase.codeToSymbol(stock.code);
                 if (s != null) {
                     // Use symbol as replacement if possible.
+                    System.out.println("stockInfoDatabase.codeToSymbol( "+stock.code+" ) = " + s.toString());
                     return s.toString();
                 }
             }
@@ -1417,6 +1516,7 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
             return stock.code.toString();
         }
 
+        System.out.println("stock.getName() = "+stock.getName());
         return name;
     }
 
@@ -1442,6 +1542,8 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
         
         // Give good width when zoom in, but too slow in calculation.
         ((CandlestickRenderer)plot.getRenderer()).setAutoWidthMethod(CandlestickRenderer.WIDTHMETHOD_SMALLEST);
+        ((CandlestickRenderer)plot.getRenderer()).setBaseOutlinePaint(new Color(255,255,255));
+        ((CandlestickRenderer)plot.getRenderer()).setUseOutlinePaint(true);
 
         CombinedDomainXYPlot cplot = new CombinedDomainXYPlot(timeAxis);
         cplot.add(plot, 3);
@@ -1524,6 +1626,28 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
         }
         return days + c + " SMA";
     }
+    
+    private String getBollingerKey(int days) {
+        Interval interval = this.getCurrentInterval();
+        String c = "d";
+        if (interval == Interval.Weekly) {
+            c = "w";
+        } else if (interval == Interval.Monthly) {
+            c = "m";
+        }
+        return days + c + " BBands";
+    }
+    
+    private String getPercentBKey(int days) {
+        Interval interval = this.getCurrentInterval();
+        String c = "d";
+        if (interval == Interval.Weekly) {
+            c = "w";
+        } else if (interval == Interval.Monthly) {
+            c = "m";
+        }
+        return days + c + " %b";
+    }
 
     private String getRSIKey(int days) {
         Interval interval = this.getCurrentInterval();
@@ -1544,7 +1668,18 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
         } else if (interval == Interval.Monthly) {
             c = "m";
         }
-        return "(" + period.fastPeriod + "," + period.slowPeriod + "," + period.period + ")";
+        return "(" + period.fastPeriod + "," + period.slowPeriod + "," + period.period + ")" + " MACD";
+    }
+    
+    private String getPPOKey(PPO.Period period) {
+        Interval interval = this.getCurrentInterval();
+        String c = "d";
+        if (interval == Interval.Weekly) {
+            c = "w";
+        } else if (interval == Interval.Monthly) {
+            c = "m";
+        }
+        return "(" + period.fastPeriod + "," + period.slowPeriod + "," + period.period + ")" + " PPO";
     }
     
     private String getCCIKey(int days) {
@@ -1676,6 +1811,12 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
                 timeAxis.setUpperMargin(0.02);
 
                 XYPlot plot = new XYPlot(dataset, timeAxis, rangeAxis1, null);
+                ValueMarker marker80 = new ValueMarker(80.0, Color.red, new BasicStroke(1.0f) );  // position is the value on the axis
+                ValueMarker marker20 = new ValueMarker(20.0, Color.red, new BasicStroke(1.0f) );
+                //marker.setLabel("here"); // see JavaDoc for labels, colors, strokes
+
+                plot.addRangeMarker(marker80);
+                plot.addRangeMarker(marker20);
 
                 XYItemRenderer renderer1 = new XYLineAndShapeRenderer(true, false);
                 renderer1.setBaseToolTipGenerator(
@@ -1757,7 +1898,104 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
                 timeAxis.setUpperMargin(0.02);
 
                 XYPlot plot = new XYPlot(dataset, timeAxis, rangeAxis1, null);
+                ValueMarker marker70 = new ValueMarker(70.0, Color.red, new BasicStroke(1.0f) );  // position is the value on the axis
+                ValueMarker marker30 = new ValueMarker(30.0, Color.red, new BasicStroke(1.0f) );
+                //marker.setLabel("here"); // see JavaDoc for labels, colors, strokes
 
+                plot.addRangeMarker(marker70);
+                plot.addRangeMarker(marker30);
+
+                XYItemRenderer renderer1 = new XYLineAndShapeRenderer(true, false);
+                /*renderer1.setBaseToolTipGenerator(
+                    new StandardXYToolTipGenerator(
+                        StandardXYToolTipGenerator.DEFAULT_TOOL_TIP_FORMAT,
+                        new SimpleDateFormat("d-MMM-yyyy"), new DecimalFormat("0.00#")
+                    )
+                );*/
+                plot.setRenderer(0, renderer1);
+                price_volume_ta_map.put(taEx, plot);
+            }
+
+            if (candlestick_ta_map.containsKey(taEx) == false) {
+                try {
+                    /* Not sure why. I cannot make priceVolumeChart and candlestickChart sharing the same
+                     * plot. If not, this will inhibit incorrect zooming behavior.
+                     */
+                    candlestick_ta_map.put(taEx, (XYPlot)price_volume_ta_map.get(taEx).clone());
+                } catch (CloneNotSupportedException ex) {
+                    log.error(null, ex);
+                }
+            }
+
+            if (this.activeTAExs.contains(taEx) == false)
+            {
+                // Avoid duplication.
+                final XYPlot price_volume_ta = price_volume_ta_map.get(taEx);
+                final XYPlot candlestick_ta = candlestick_ta_map.get(taEx);
+                final CombinedDomainXYPlot cplot0 = (CombinedDomainXYPlot)this.priceVolumeChart.getPlot();
+                final CombinedDomainXYPlot cplot1 = (CombinedDomainXYPlot)this.candlestickChart.getPlot();
+
+                if (price_volume_ta != null) cplot0.add(price_volume_ta, 1);    // weight is 1.
+                if (candlestick_ta != null) cplot1.add(candlestick_ta, 1);      // weight is 1.
+                org.yccheok.jstock.charting.Utils.applyChartThemeEx(this.priceVolumeChart);
+                org.yccheok.jstock.charting.Utils.applyChartThemeEx(this.candlestickChart);
+            }
+        }
+        else {
+            final CombinedDomainXYPlot cplot0 = (CombinedDomainXYPlot)this.priceVolumeChart.getPlot();
+            final CombinedDomainXYPlot cplot1 = (CombinedDomainXYPlot)this.candlestickChart.getPlot();
+            final XYPlot price_volume_ta = price_volume_ta_map.get(taEx);
+            final XYPlot candlestick_ta = candlestick_ta_map.get(taEx);
+
+            if (price_volume_ta != null) cplot0.remove(price_volume_ta);
+            if (candlestick_ta != null) cplot1.remove(candlestick_ta);
+        }
+
+        if (show && this.activeTAExs.contains(taEx) == false) {
+            this.activeTAExs.add(taEx);
+            JStock.instance().getChartJDialogOptions().add(taEx);
+        }
+        else if (!show) {
+            this.activeTAExs.remove(taEx);
+            JStock.instance().getChartJDialogOptions().remove(taEx);
+        }
+    }
+    
+    private void updatePPO(PPO.Period period, boolean show) {
+        //System.out.println("updatePPO - PPO Signal period: "+period.period);
+        if (this.priceVolumeChart == null) {
+            this.priceVolumeChart = this.createPriceVolumeChart(this.priceDataset, this.volumeDataset);
+        }
+        if (this.candlestickChart == null) {
+            this.candlestickChart = this.createCandlestickChart(this.priceOHLCDataset);
+        }
+
+        final TAEx taEx = TAEx.newInstance(TA.PPO, period);
+
+        if (show) {
+            if (price_volume_ta_map.containsKey(taEx) == false) {
+                final PPO.ChartResult ppoChartResult = org.yccheok.jstock.charting.TechnicalAnalysis.createPPO(this.chartDatas, getPPOKey(period), period);
+                
+                // PPO!
+                NumberAxis rangeAxis1 = new NumberAxis(GUIBundle.getString("ChartJDialog_PPO"));
+                rangeAxis1.setAutoRangeIncludesZero(false);     // override default
+                rangeAxis1.setLowerMargin(0.40);                // to leave room for volume bars
+                DecimalFormat format = new DecimalFormat("0.00#");
+                rangeAxis1.setNumberFormatOverride(format);
+
+                final ValueAxis timeAxis = new DateAxis(GUIBundle.getString("ChartJDialog_Date"));
+                timeAxis.setLowerMargin(0.02);                  // reduce the default margins
+                timeAxis.setUpperMargin(0.02);
+
+                XYPlot plot = new XYPlot(ppoChartResult.outPPO, timeAxis, rangeAxis1, null);
+
+                ValueMarker marker0 = new ValueMarker(0.0, Color.red, new BasicStroke(1.0f) );  // position is the value on the axis
+                //ValueMarker marker30 = new ValueMarker(30.0, Color.red, new BasicStroke(1.0f) );
+                //marker.setLabel("here"); // see JavaDoc for labels, colors, strokes
+
+                plot.addRangeMarker(marker0);
+                //plot.addRangeMarker(marker30);
+                
                 XYItemRenderer renderer1 = new XYLineAndShapeRenderer(true, false);
                 renderer1.setBaseToolTipGenerator(
                     new StandardXYToolTipGenerator(
@@ -1766,9 +2004,38 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
                     )
                 );
                 plot.setRenderer(0, renderer1);
+
+                // PPO SIGNAL!
+                plot.setDataset(1, ppoChartResult.outPPOSignal);
+                XYItemRenderer renderer2 = new XYLineAndShapeRenderer(true, false);
+                renderer2.setBaseToolTipGenerator(
+                    new StandardXYToolTipGenerator(
+                        StandardXYToolTipGenerator.DEFAULT_TOOL_TIP_FORMAT,
+                        new SimpleDateFormat("d-MMM-yyyy"), new DecimalFormat("0.00#")
+                    )
+                );                
+                plot.setRenderer(1, renderer2);
+                
+                // PPO HIST!
+               
+                plot.setRangeAxis(1, rangeAxis1);
+                plot.setDataset(2, ppoChartResult.outPPOHist);
+                plot.mapDatasetToRangeAxis(1, 1);
+                
+                XYBarRenderer renderer3 = new XYBarRenderer();
+                
+                renderer3.setBaseToolTipGenerator(
+                    new StandardXYToolTipGenerator(
+                        StandardXYToolTipGenerator.DEFAULT_TOOL_TIP_FORMAT,
+                        new SimpleDateFormat("d-MMM-yyyy"), new DecimalFormat("0,000.00")
+                    )
+                );
+                plot.setRenderer(2, renderer3);
+                
+                
                 price_volume_ta_map.put(taEx, plot);
             }
-
+                
             if (candlestick_ta_map.containsKey(taEx) == false) {
                 try {
                     /* Not sure why. I cannot make priceVolumeChart and candlestickChart sharing the same
@@ -1835,7 +2102,8 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
                 // MACD!
                 NumberAxis rangeAxis1 = new NumberAxis(GUIBundle.getString("ChartJDialog_MACD"));
                 rangeAxis1.setAutoRangeIncludesZero(false);     // override default
-                rangeAxis1.setLowerMargin(0.40);                // to leave room for volume bars
+                rangeAxis1.setLowerMargin(0.00);                // to leave room for volume bars
+                rangeAxis1.setUpperMargin(0.00);
                 DecimalFormat format = new DecimalFormat("0.00#");
                 rangeAxis1.setNumberFormatOverride(format);
 
@@ -1845,6 +2113,13 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
 
                 XYPlot plot = new XYPlot(macdChartResult.outMACD, timeAxis, rangeAxis1, null);
 
+                ValueMarker marker0 = new ValueMarker(0.0, Color.red, new BasicStroke(1.0f) );  // position is the value on the axis
+                //ValueMarker marker30 = new ValueMarker(30.0, Color.red, new BasicStroke(1.0f) );
+                //marker.setLabel("here"); // see JavaDoc for labels, colors, strokes
+
+                plot.addRangeMarker(marker0);
+                //plot.addRangeMarker(marker30);
+                
                 XYItemRenderer renderer1 = new XYLineAndShapeRenderer(true, false);
                 renderer1.setBaseToolTipGenerator(
                     new StandardXYToolTipGenerator(
@@ -1866,12 +2141,13 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
                 );                
                 plot.setRenderer(1, renderer2);
                 
-                // VOLUME!
-                //plot.setRangeAxis(1, rangeAxis1);
+                // HIST!
+                
+                plot.setRangeAxis(1, rangeAxis1);
                 plot.setDataset(2, macdChartResult.outMACDHist);
-                //plot.mapDatasetToRangeAxis(1, 1);
-
-                XYBarRenderer renderer3 = new XYBarRenderer(0.20);
+                plot.mapDatasetToRangeAxis(1, 1);
+                
+                XYBarRenderer renderer3 = new XYBarRenderer();
                 
                 renderer3.setBaseToolTipGenerator(
                     new StandardXYToolTipGenerator(
@@ -1879,9 +2155,8 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
                         new SimpleDateFormat("d-MMM-yyyy"), new DecimalFormat("0,000.00")
                     )
                 );
-                plot.setRenderer(2, renderer3);                
+                plot.setRenderer(2, renderer3);
                 
-
                 
                 price_volume_ta_map.put(taEx, plot);
             }   
@@ -1929,7 +2204,7 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
             JStock.instance().getChartJDialogOptions().remove(taEx);
         }        
     }
-    
+      
     private void updateEMA(int days, boolean show) {
         if (this.priceVolumeChart == null) {
             this.priceVolumeChart = this.createPriceVolumeChart(this.priceDataset, this.volumeDataset);
@@ -2003,6 +2278,168 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
         }
     }
 
+    private void updatePercentB(int days, boolean show) {
+        if (this.priceVolumeChart == null) {
+            this.priceVolumeChart = this.createPriceVolumeChart(this.priceDataset, this.volumeDataset);
+        }
+        if (this.candlestickChart == null) {
+            this.candlestickChart = this.createCandlestickChart(this.priceOHLCDataset);
+        }
+
+        final TAEx taEx = TAEx.newInstance(TA.PercentB, new Integer(days));
+
+        if (show) {
+            if (price_volume_ta_map.containsKey(taEx) == false) {
+                final XYDataset dataset = org.yccheok.jstock.charting.TechnicalAnalysis.createPercentB(this.chartDatas, getPercentBKey(days), days);
+                NumberAxis rangeAxis1 = new NumberAxis(GUIBundle.getString("ChartJDialog_PercentB"));
+                rangeAxis1.setAutoRangeIncludesZero(false);     // override default
+                rangeAxis1.setLowerMargin(0.40);                // to leave room for volume bars
+                DecimalFormat format = new DecimalFormat("0.00#");
+                rangeAxis1.setNumberFormatOverride(format);
+
+                final ValueAxis timeAxis = new DateAxis(GUIBundle.getString("ChartJDialog_Date"));
+                timeAxis.setLowerMargin(0.02);                  // reduce the default margins
+                timeAxis.setUpperMargin(0.02);
+
+                XYPlot plot = new XYPlot(dataset, timeAxis, rangeAxis1, null);
+
+                XYItemRenderer renderer1 = new XYLineAndShapeRenderer(true, false);
+                renderer1.setBaseToolTipGenerator(
+                    new StandardXYToolTipGenerator(
+                        StandardXYToolTipGenerator.DEFAULT_TOOL_TIP_FORMAT,
+                        new SimpleDateFormat("d-MMM-yyyy"), new DecimalFormat("0.00#")
+                    )
+                );
+                plot.setRenderer(0, renderer1);
+                price_volume_ta_map.put(taEx, plot);
+            }
+
+            if (candlestick_ta_map.containsKey(taEx) == false) {
+                try {
+                    /* Not sure why. I cannot make priceVolumeChart and candlestickChart sharing the same
+                     * plot. If not, this will inhibit incorrect zooming behavior.
+                     */
+                    candlestick_ta_map.put(taEx, (XYPlot)price_volume_ta_map.get(taEx).clone());
+                } catch (CloneNotSupportedException ex) {
+                    log.error(null, ex);
+                }
+            }
+
+            if (this.activeTAExs.contains(taEx) == false)
+            {
+                // Avoid duplication.
+                final XYPlot price_volume_ta = price_volume_ta_map.get(taEx);
+                final XYPlot candlestick_ta = candlestick_ta_map.get(taEx);
+
+                final CombinedDomainXYPlot cplot0 = (CombinedDomainXYPlot)this.priceVolumeChart.getPlot();
+                final CombinedDomainXYPlot cplot1 = (CombinedDomainXYPlot)this.candlestickChart.getPlot();
+                if (price_volume_ta != null) cplot0.add(price_volume_ta, 1);    // weight is 1.
+                if (candlestick_ta != null) cplot1.add(candlestick_ta, 1);      // weight is 1.
+                org.yccheok.jstock.charting.Utils.applyChartThemeEx(this.priceVolumeChart);
+                org.yccheok.jstock.charting.Utils.applyChartThemeEx(this.candlestickChart);
+            }
+        }
+        else {
+            final CombinedDomainXYPlot cplot0 = (CombinedDomainXYPlot)this.priceVolumeChart.getPlot();
+            final CombinedDomainXYPlot cplot1 = (CombinedDomainXYPlot)this.candlestickChart.getPlot();
+            final XYPlot price_volume_ta = price_volume_ta_map.get(taEx);
+            final XYPlot candlestick_ta = candlestick_ta_map.get(taEx);
+
+            if (price_volume_ta != null) cplot0.remove(price_volume_ta);
+            if (candlestick_ta != null) cplot1.remove(candlestick_ta);
+        }
+
+        if (show && this.activeTAExs.contains(taEx) == false) {
+            this.activeTAExs.add(taEx);
+            JStock.instance().getChartJDialogOptions().add(taEx);
+        }
+        else if (!show) {
+            this.activeTAExs.remove(taEx);
+            JStock.instance().getChartJDialogOptions().remove(taEx);
+        }
+    }
+    
+    private void updateBandwidth(int days, boolean show) {
+        if (this.priceVolumeChart == null) {
+            this.priceVolumeChart = this.createPriceVolumeChart(this.priceDataset, this.volumeDataset);
+        }
+        if (this.candlestickChart == null) {
+            this.candlestickChart = this.createCandlestickChart(this.priceOHLCDataset);
+        }
+
+        final TAEx taEx = TAEx.newInstance(TA.Bandwidth, new Integer(days));
+
+        if (show) {
+            if (price_volume_ta_map.containsKey(taEx) == false) {
+                final XYDataset dataset = org.yccheok.jstock.charting.TechnicalAnalysis.createBandwidth(this.chartDatas, getPercentBKey(days), days);
+                NumberAxis rangeAxis1 = new NumberAxis(GUIBundle.getString("ChartJDialog_Bandwidth"));
+                rangeAxis1.setAutoRangeIncludesZero(false);     // override default
+                rangeAxis1.setLowerMargin(0.40);                // to leave room for volume bars
+                DecimalFormat format = new DecimalFormat("0.00#");
+                rangeAxis1.setNumberFormatOverride(format);
+
+                final ValueAxis timeAxis = new DateAxis(GUIBundle.getString("ChartJDialog_Date"));
+                timeAxis.setLowerMargin(0.02);                  // reduce the default margins
+                timeAxis.setUpperMargin(0.02);
+
+                XYPlot plot = new XYPlot(dataset, timeAxis, rangeAxis1, null);
+
+                XYItemRenderer renderer1 = new XYLineAndShapeRenderer(true, false);
+                renderer1.setBaseToolTipGenerator(
+                    new StandardXYToolTipGenerator(
+                        StandardXYToolTipGenerator.DEFAULT_TOOL_TIP_FORMAT,
+                        new SimpleDateFormat("d-MMM-yyyy"), new DecimalFormat("0.00#")
+                    )
+                );
+                plot.setRenderer(0, renderer1);
+                price_volume_ta_map.put(taEx, plot);
+            }
+
+            if (candlestick_ta_map.containsKey(taEx) == false) {
+                try {
+                    /* Not sure why. I cannot make priceVolumeChart and candlestickChart sharing the same
+                     * plot. If not, this will inhibit incorrect zooming behavior.
+                     */
+                    candlestick_ta_map.put(taEx, (XYPlot)price_volume_ta_map.get(taEx).clone());
+                } catch (CloneNotSupportedException ex) {
+                    log.error(null, ex);
+                }
+            }
+
+            if (this.activeTAExs.contains(taEx) == false)
+            {
+                // Avoid duplication.
+                final XYPlot price_volume_ta = price_volume_ta_map.get(taEx);
+                final XYPlot candlestick_ta = candlestick_ta_map.get(taEx);
+
+                final CombinedDomainXYPlot cplot0 = (CombinedDomainXYPlot)this.priceVolumeChart.getPlot();
+                final CombinedDomainXYPlot cplot1 = (CombinedDomainXYPlot)this.candlestickChart.getPlot();
+                if (price_volume_ta != null) cplot0.add(price_volume_ta, 1);    // weight is 1.
+                if (candlestick_ta != null) cplot1.add(candlestick_ta, 1);      // weight is 1.
+                org.yccheok.jstock.charting.Utils.applyChartThemeEx(this.priceVolumeChart);
+                org.yccheok.jstock.charting.Utils.applyChartThemeEx(this.candlestickChart);
+            }
+        }
+        else {
+            final CombinedDomainXYPlot cplot0 = (CombinedDomainXYPlot)this.priceVolumeChart.getPlot();
+            final CombinedDomainXYPlot cplot1 = (CombinedDomainXYPlot)this.candlestickChart.getPlot();
+            final XYPlot price_volume_ta = price_volume_ta_map.get(taEx);
+            final XYPlot candlestick_ta = candlestick_ta_map.get(taEx);
+
+            if (price_volume_ta != null) cplot0.remove(price_volume_ta);
+            if (candlestick_ta != null) cplot1.remove(candlestick_ta);
+        }
+
+        if (show && this.activeTAExs.contains(taEx) == false) {
+            this.activeTAExs.add(taEx);
+            JStock.instance().getChartJDialogOptions().add(taEx);
+        }
+        else if (!show) {
+            this.activeTAExs.remove(taEx);
+            JStock.instance().getChartJDialogOptions().remove(taEx);
+        }
+    }
+    
     /**
      * Returns chart change listener, which will be responsible for handling
      * zooming event.
@@ -2138,7 +2575,112 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
             JStock.instance().getChartJDialogOptions().remove(taEx);
         }
     }
+     
+        private void updateBBands(int days, boolean show) {
+        if (this.priceVolumeChart == null) {
+            this.priceVolumeChart = this.createPriceVolumeChart(this.priceDataset, this.volumeDataset);
+        }
+        if (this.candlestickChart == null) {
+            this.candlestickChart = this.createCandlestickChart(this.priceOHLCDataset);
+        }
+        
+        final TAEx taEx = TAEx.newInstance(TA.BBands, new Integer(days));
+        if (show) {
+            Bollinger.TimeSeriesResult timeSeries = null;
+            Bollinger.ChartResult dataSet = null;
+            final Integer days_integer = days;
+            if (false == time_series_bbands_map.containsKey(days_integer)) {
+                timeSeries = TechnicalAnalysis.createBBands(this.chartDatas, this.getBollingerKey(days), days);
+                //dataSet = TechnicalAnalysis.createBBands(this.chartDatas, this.getSMAKey(days), days);
+                // Do not put everything into map. We will out of memory.
+                if (this.time_series_bbands_map.size() < MAX_MAP_SIZE) {
+                    time_series_bbands_map.put(days_integer, timeSeries);
+                }
+            }
+            else {
+                timeSeries = time_series_bbands_map.get(days_integer);
+                //dataSet =  new TimeSeriesCollection(timeSeries);
+            }
 
+            {
+                if (this.activeTAExs.contains(taEx) == false)
+                {
+                    // Avoid duplication.
+                    //((TimeSeriesCollection)this.priceDataset).addSeries(timeSeries.bollingerCentral);
+                }                
+            }
+            {
+                if (this.activeTAExs.contains(taEx) == false)
+                {
+                    // Avoid duplication.
+                    final Plot main_plot = (Plot)((CombinedDomainXYPlot)this.candlestickChart.getPlot()).getSubplots().get(0);
+                    final XYPlot plot = (XYPlot) main_plot;
+                    final int index = getIndex(taEx, this.xydata_index_map);
+                    this.xydata_index_map.put(taEx, index+4);
+                    plot.setDataset(index, new TimeSeriesCollection(timeSeries.bollingerCentral));
+                    plot.setRenderer(index, new StandardXYItemRenderer());
+                    //this.xydata_index_map.put(taEx, index+1);
+                    plot.setDataset(index+1, new TimeSeriesCollection(timeSeries.bollinger1Up));
+                    plot.setRenderer(index+1, new StandardXYItemRenderer());
+                    //this.xydata_index_map.put(taEx, index+2);
+                    plot.setDataset(index+2, new TimeSeriesCollection(timeSeries.bollinger1Down));
+                    plot.setRenderer(index+2, new StandardXYItemRenderer());
+                    //this.xydata_index_map.put(taEx, index+3);
+                    plot.setDataset(index+3, new TimeSeriesCollection(timeSeries.bollinger2Up));
+                    plot.setRenderer(index+3, new StandardXYItemRenderer());
+                    //this.xydata_index_map.put(taEx, index+4);
+                    plot.setDataset(index+4, new TimeSeriesCollection(timeSeries.bollinger2Down));
+                    plot.setRenderer(index+4, new StandardXYItemRenderer());
+                }
+            }
+        }
+        else {
+            {
+                final TimeSeries ts = ((TimeSeriesCollection)this.priceDataset).getSeries(this.getBollingerKey(days));
+                if (ts != null) {
+                    //((TimeSeriesCollection)this.priceDataset).removeSeries(ts);
+                }
+            }
+            {
+                final Plot main_plot = (Plot)((CombinedDomainXYPlot)this.candlestickChart.getPlot()).getSubplots().get(0);
+                final XYPlot plot = (XYPlot) main_plot;
+                Integer integer = this.xydata_index_map.get(taEx);
+                if (integer != null) {
+                    final int index = integer;
+                    plot.setDataset(index, null);
+                }
+                if (integer != null) {
+                    final int index = integer-1;
+                    plot.setDataset(index, null);
+                }
+                integer = this.xydata_index_map.get(taEx);
+                if (integer != null) {
+                    final int index = integer-2;
+                    plot.setDataset(index, null);
+                }
+                if (integer != null) {
+                    final int index = integer-3;
+                    plot.setDataset(index, null);
+                }
+                integer = this.xydata_index_map.get(taEx);
+                if (integer != null) {
+                    final int index = integer-4;
+                    plot.setDataset(index, null);
+                }
+            }
+        }
+
+        if (show && this.activeTAExs.contains(taEx) == false) {
+            this.activeTAExs.add(taEx);
+            JStock.instance().getChartJDialogOptions().add(taEx);
+        }
+        else if (!show) {
+            this.activeTAExs.remove(taEx);
+            JStock.instance().getChartJDialogOptions().remove(taEx);
+        }
+    }
+    
+    
     public static class TAEx {
         private TAEx(TA ta, Object parameter) {
             if (ta == null || parameter == null) {
@@ -2203,6 +2745,7 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
     private final ChartPanel chartPanel;
     private final Map<Integer, TimeSeries> time_series_moving_average_map = new HashMap<Integer, TimeSeries>();
     private final Map<Integer, TimeSeries> time_series_exponential_moving_average_map = new HashMap<Integer, TimeSeries>();
+    private final Map<Integer, Bollinger.TimeSeriesResult> time_series_bbands_map = new HashMap<Integer, Bollinger.TimeSeriesResult>();
     /* Days to series index. (For main plot only) */
     private final Map<TAEx, Integer> xydata_index_map = new HashMap<TAEx, Integer>();
     private final List<TAEx> activeTAExs = new ArrayList<TAEx>();
@@ -2229,9 +2772,6 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
     /* Overlay layer. */
     private final ChartLayerUI<ChartPanel> chartLayerUI;
 
-    /* To avoid memory leak. */
-    private final java.awt.Frame parent;
-    
     private static final Log log = LogFactory.getLog(ChartJDialog.class);
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

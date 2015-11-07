@@ -40,7 +40,14 @@ public class StockRelativeHistoryOperator extends AbstractOperator {
         MFI,
         MACD,
         MACDSignal,
-        MACDHist
+        MACDHist,
+        PPO,
+        PPOSignal,
+        PPOHist,
+        Bollinger1down,
+        Bollinger1up,
+        Bollinger2down,
+        Bollinger2up
     }
     
     public enum Type
@@ -348,6 +355,34 @@ public class StockRelativeHistoryOperator extends AbstractOperator {
                 
             case MACDHist:
                 v = TechnicalAnalysis.createMACDFix(values, day).outMACDHist;
+                break;
+                
+            case PPO:
+                v = TechnicalAnalysis.createPPOFix(values, day).outPPO;
+                break;
+
+            case PPOSignal:
+                v = TechnicalAnalysis.createPPOFix(values, day).outPPOSignal;
+                break;
+                
+            case PPOHist:
+                v = TechnicalAnalysis.createPPOFix(values, day).outPPOHist;
+                break;   
+                
+            case Bollinger1down:
+                v = TechnicalAnalysis.createBBands(values, day).bollinger1Down;
+                break;
+                
+            case Bollinger1up:
+                v = TechnicalAnalysis.createBBands(values, day).bollinger1Up;
+                break;
+                
+            case Bollinger2down:
+                v = TechnicalAnalysis.createBBands(values, day).bollinger2Down;
+                break;
+                
+            case Bollinger2up:
+                v = TechnicalAnalysis.createBBands(values, day).bollinger2Up;
                 break;
                 
             default:

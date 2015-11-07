@@ -49,7 +49,7 @@ public class Utils {
     {
         // _kellysMaxContrastSet.add(new Color(0xffffff));
         _kellysMaxContrastSet.add(new Color(0x000000));
-        _kellysMaxContrastSet.add(new Color(0xFFB300)); //Vivid Yellow
+       // _kellysMaxContrastSet.add(new Color(0xFFB300)); //Vivid Yellow
         _kellysMaxContrastSet.add(new Color(0x803E75)); //Strong Purple
         _kellysMaxContrastSet.add(new Color(0xFF6800)); //Vivid Orange
         _kellysMaxContrastSet.add(new Color(0xA6BDD7)); //Very Light Blue
@@ -75,7 +75,7 @@ public class Utils {
         _boyntonOptimized.add(new Color(0, 0, 255));    //Blue
         _boyntonOptimized.add(new Color(255, 0, 0));    //Red
         _boyntonOptimized.add(new Color(0, 255, 0));    //Green
-        _boyntonOptimized.add(new Color(255, 255, 0));  //Yellow
+        //_boyntonOptimized.add(new Color(255, 255, 0));  //Yellow
         _boyntonOptimized.add(new Color(255, 0, 255));  //Magenta
         _boyntonOptimized.add(new Color(255, 128, 128));//Pink
         _boyntonOptimized.add(new Color(128, 128, 128));//Gray
@@ -84,13 +84,13 @@ public class Utils {
     };
                       
     public static void setPriceSeriesPaint(XYItemRenderer xyItemRenderer) {
-        //xyItemRenderer.setSeriesPaint(0, new Color(255, 85, 85));
-        //for (int i = 0, ei = _kellysMaxContrastSet.size(); i < ei; i++) {
-        //    xyItemRenderer.setSeriesPaint(i + 1, _kellysMaxContrastSet.get(i));
-        //}
-        //for (int i = 0, ei = _boyntonOptimized.size(); i < ei; i++) {
-        //    xyItemRenderer.setSeriesPaint(i + 1 + _kellysMaxContrastSet.size(), _boyntonOptimized.get(i));
-        //}        
+        xyItemRenderer.setSeriesPaint(0, new Color(255, 85, 85));
+        for (int i = 0, ei = _kellysMaxContrastSet.size(); i < ei; i++) {
+            xyItemRenderer.setSeriesPaint(i + 1, _kellysMaxContrastSet.get(i));
+        }
+        for (int i = 0, ei = _boyntonOptimized.size(); i < ei; i++) {
+            xyItemRenderer.setSeriesPaint(i + 1 + _kellysMaxContrastSet.size(), _boyntonOptimized.get(i));
+        }        
     }
 
     public static void setVolumeSeriesPaint(XYItemRenderer xyItemRenderer) {
@@ -349,6 +349,8 @@ public class Utils {
         } else {
             assert(theme == JStockOptions.ChartTheme.Dark);
             chartTheme = (StandardChartTheme)org.jfree.chart.StandardChartTheme.createDarknessTheme();
+            chartTheme.setXYBarPainter(barPainter);
+            chartTheme.setShadowVisible(false);
         }
         
         // The default font used by JFreeChart unable to render Chinese properly.
