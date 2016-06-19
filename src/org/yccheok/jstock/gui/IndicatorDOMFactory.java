@@ -18,6 +18,7 @@ import org.yccheok.jstock.gui.analysis.EqualityOperatorFigure;
 import org.yccheok.jstock.gui.analysis.StockHistoryOperatorFigure;
 import org.yccheok.jstock.gui.analysis.LogicalOperatorFigure;
 import org.yccheok.jstock.gui.analysis.StockRelativeHistoryOperatorFigure;
+import org.yccheok.jstock.gui.analysis.CandlePatternOperatorFigure;
 import org.yccheok.jstock.gui.analysis.DoubleConstantOperatorFigure;
 import org.yccheok.jstock.gui.analysis.SeparatorLineFigure;
 import org.yccheok.jstock.gui.analysis.SinkOperatorFigure;
@@ -40,6 +41,7 @@ public class IndicatorDOMFactory extends DefaultDOMFactory {
         { DefaultDrawing.class, "PertDiagram" },
         { StockOperatorFigure.class, "stockOperatorFigure" },
         { StockHistoryOperatorFigure.class, "stockHistoryOperatorFigure" }, 
+        { CandlePatternOperatorFigure.class, "candlePatternOperatorFigure" },
         { StockRelativeHistoryOperatorFigure.class, "stockRelativeHistoryOperatorFigure" },
         { SinkOperatorFigure.class, "sinkOperatorFigure" },
         { ArithmeticOperatorFigure.class, "arithmeticOperatorFigure" },

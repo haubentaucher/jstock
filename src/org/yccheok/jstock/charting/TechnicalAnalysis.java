@@ -772,6 +772,47 @@ public class TechnicalAnalysis {
         return new TimeSeriesCollection(series);
     }
     
+    public static Stochastics.ChartResult createStochastics(List<ChartData> chartDatas, String name, Stochastics.Period period) {
+        final int num = chartDatas.size();
+        final Core core = new Core();
+        final MAType slowKMAType=MAType.Ema;
+        final MAType slowDMAType=MAType.Ema;
+        final int allocationSize = num - core.stochLookback(period.fastKPeriod, period.slowKPeriod, slowKMAType, period.slowDPeriod, slowDMAType);
+        if (allocationSize <= 0) {
+            return null;
+        }
+        
+        final double[] last = new double[num];
+        final double[] low = new double[num];
+        final double[] high = new double[num];
+        // Fill up last array.
+        for (int i = 0; i < num; i++) {
+            last[i] = chartDatas.get(i).lastPrice;
+            low[i] = chartDatas.get(i).lowPrice;
+            high[i] = chartDatas.get(i).highPrice;
+        }
+        
+        final double[] outSlowK = new double[allocationSize];
+        final double[] outSlowD = new double[allocationSize];
+        final MInteger outBegIdx = new MInteger();
+        final MInteger outNbElement = new MInteger();
+
+        core.stoch(0, last.length - 1, high, low, last, period.fastKPeriod, period.slowKPeriod, slowKMAType, period.slowDPeriod, slowDMAType, outBegIdx, outNbElement, outSlowK, outSlowD);
+        
+        final TimeSeries slowKTimeSeries = new TimeSeries(name);
+        final TimeSeries slowDTimeSeries = new TimeSeries(name+" Signal");
+        
+        for (int i = 0; i < outNbElement.value; i++) {
+            Day day = new Day(new Date(chartDatas.get(i + outBegIdx.value).timestamp));
+            slowKTimeSeries.add(day, outSlowK[i]);
+            slowDTimeSeries.add(day, outSlowD[i]);
+        }
+        
+        return Stochastics.ChartResult.newInstance(
+                new TimeSeriesCollection(slowKTimeSeries), 
+                new TimeSeriesCollection(slowDTimeSeries));
+    }
+    
     /**
      * Returns typical price of the stock.
      * 

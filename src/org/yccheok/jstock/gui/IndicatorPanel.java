@@ -1288,6 +1288,8 @@ public class IndicatorPanel extends JPanel {
         ButtonFactory.addToolTo(tb, editor, new OperatorFigureCreationTool("org.yccheok.jstock.gui.analysis.StockHistoryOperatorFigure", attributes), "createStockHistory", labels);
         ButtonFactory.addToolTo(tb, editor, new OperatorFigureCreationTool("org.yccheok.jstock.gui.analysis.StockOperatorFigure", attributes), "createStock", labels);
         tb.addSeparator();
+        ButtonFactory.addToolTo(tb, editor, new OperatorFigureCreationTool("org.yccheok.jstock.gui.analysis.CandlePatternOperatorFigure", attributes), "createCandlePattern", labels);
+        tb.addSeparator();
         //ButtonFactory.addToolTo(tb, editor, new OperatorFigureCreationTool("org.yccheok.jstock.gui.analysis.DiodeOperatorFigure", attributes), "createDiode", labels);
         ButtonFactory.addToolTo(tb, editor, new OperatorFigureCreationTool("org.yccheok.jstock.gui.analysis.SinkOperatorFigure", attributes), "createSink", labels);
         tb.addSeparator();

@@ -1638,6 +1638,17 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
         return days + c + " BBands";
     }
     
+    private String getBollingerWidthKey(int days) {
+        Interval interval = this.getCurrentInterval();
+        String c = "d";
+        if (interval == Interval.Weekly) {
+            c = "w";
+        } else if (interval == Interval.Monthly) {
+            c = "m";
+        }
+        return days + c + " b width";
+    }
+    
     private String getPercentBKey(int days) {
         Interval interval = this.getCurrentInterval();
         String c = "d";
@@ -2371,7 +2382,7 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
 
         if (show) {
             if (price_volume_ta_map.containsKey(taEx) == false) {
-                final XYDataset dataset = org.yccheok.jstock.charting.TechnicalAnalysis.createBandwidth(this.chartDatas, getPercentBKey(days), days);
+                final XYDataset dataset = org.yccheok.jstock.charting.TechnicalAnalysis.createBandwidth(this.chartDatas, getBollingerWidthKey(days), days);
                 NumberAxis rangeAxis1 = new NumberAxis(GUIBundle.getString("ChartJDialog_Bandwidth"));
                 rangeAxis1.setAutoRangeIncludesZero(false);     // override default
                 rangeAxis1.setLowerMargin(0.40);                // to leave room for volume bars
@@ -2618,19 +2629,59 @@ public class ChartJDialog extends javax.swing.JFrame implements WindowListener {
                     final int index = getIndex(taEx, this.xydata_index_map);
                     this.xydata_index_map.put(taEx, index+4);
                     plot.setDataset(index, new TimeSeriesCollection(timeSeries.bollingerCentral));
-                    plot.setRenderer(index, new StandardXYItemRenderer());
+                    XYLineAndShapeRenderer centralRenderer = new XYLineAndShapeRenderer();
+                    centralRenderer.setStroke(new BasicStroke(1.0f,                      // Width
+                                                                         BasicStroke.CAP_SQUARE,    // End cap
+                                                                         BasicStroke.JOIN_MITER,    // Join style
+                                                                         10.0f,                     // Miter limit
+                                                                         new float[] {10.0f,20.0f}, // Dash pattern
+                                                                         0.0f) ); // Dash phase)
+                    centralRenderer.setBaseShapesVisible(false);
+                    plot.setRenderer(index, centralRenderer);
                     //this.xydata_index_map.put(taEx, index+1);
                     plot.setDataset(index+1, new TimeSeriesCollection(timeSeries.bollinger1Up));
-                    plot.setRenderer(index+1, new StandardXYItemRenderer());
+                    XYLineAndShapeRenderer oneUpRenderer = new XYLineAndShapeRenderer();
+                    oneUpRenderer.setStroke(new BasicStroke(1.0f,                      // Width
+                                                                         BasicStroke.CAP_SQUARE,    // End cap
+                                                                         BasicStroke.JOIN_MITER,    // Join style
+                                                                         10.0f,                     // Miter limit
+                                                                         new float[] {21.0f,9.0f,3.0f,9.0f}, // Dash pattern
+                                                                         0.0f) ); // Dash phase)
+                    oneUpRenderer.setBaseShapesVisible(false);
+                    plot.setRenderer(index+1, oneUpRenderer);
                     //this.xydata_index_map.put(taEx, index+2);
                     plot.setDataset(index+2, new TimeSeriesCollection(timeSeries.bollinger1Down));
-                    plot.setRenderer(index+2, new StandardXYItemRenderer());
+                    XYLineAndShapeRenderer oneDownRenderer = new XYLineAndShapeRenderer();
+                    oneDownRenderer.setStroke(new BasicStroke(1.0f,                      // Width
+                                                                         BasicStroke.CAP_SQUARE,    // End cap
+                                                                         BasicStroke.JOIN_MITER,    // Join style
+                                                                         10.0f,                     // Miter limit
+                                                                         new float[] {21.0f,9.0f,3.0f,9.0f}, // Dash pattern
+                                                                         0.0f) ); // Dash phase)
+                    oneDownRenderer.setBaseShapesVisible(false);
+                    plot.setRenderer(index+2, oneDownRenderer);
                     //this.xydata_index_map.put(taEx, index+3);
                     plot.setDataset(index+3, new TimeSeriesCollection(timeSeries.bollinger2Up));
-                    plot.setRenderer(index+3, new StandardXYItemRenderer());
+                    XYLineAndShapeRenderer twoUpRenderer = new XYLineAndShapeRenderer();
+                    twoUpRenderer.setStroke(new BasicStroke(1.0f,                      // Width
+                                                                         BasicStroke.CAP_SQUARE,    // End cap
+                                                                         BasicStroke.JOIN_MITER,    // Join style
+                                                                         10.0f,                     // Miter limit
+                                                                         new float[] {20.0f,20.0f}, // Dash pattern
+                                                                         0.0f) ); // Dash phase)
+                    twoUpRenderer.setBaseShapesVisible(false);
+                    plot.setRenderer(index+3, twoUpRenderer);
                     //this.xydata_index_map.put(taEx, index+4);
                     plot.setDataset(index+4, new TimeSeriesCollection(timeSeries.bollinger2Down));
-                    plot.setRenderer(index+4, new StandardXYItemRenderer());
+                    XYLineAndShapeRenderer twoDownRenderer = new XYLineAndShapeRenderer();
+                    twoDownRenderer.setStroke(new BasicStroke(1.0f,                      // Width
+                                                                         BasicStroke.CAP_SQUARE,    // End cap
+                                                                         BasicStroke.JOIN_MITER,    // Join style
+                                                                         10.0f,                     // Miter limit
+                                                                         new float[] {20.0f,20.0f}, // Dash pattern
+                                                                         0.0f) ); // Dash phase)
+                    twoDownRenderer.setBaseShapesVisible(false);
+                    plot.setRenderer(index+4, twoDownRenderer);
                 }
             }
         }
