@@ -691,16 +691,16 @@ public class TechnicalAnalysis {
             return new TimeSeriesCollection(series);
         }
 
-        final double[] high = new double[num];
-        final double[] low = new double[num];
+        //final double[] high = new double[num];
+        //final double[] low = new double[num];
         final double[] close = new double[num];
-        final double[] volume = new double[num];
+        //final double[] volume = new double[num];
         // Fill up last array.
         for (int i = 0; i < num; i++) {
-            high[i] = chartDatas.get(i).highPrice;
-            low[i] = chartDatas.get(i).lowPrice;
+            //high[i] = chartDatas.get(i).highPrice;
+            //low[i] = chartDatas.get(i).lowPrice;
             close[i] = chartDatas.get(i).lastPrice;
-            volume[i] = chartDatas.get(i).volume;
+            //volume[i] = chartDatas.get(i).volume;
         }
 
         final double[] output = new double[bbands_allocationSize];
@@ -739,16 +739,16 @@ public class TechnicalAnalysis {
             return new TimeSeriesCollection(series);
         }
 
-        final double[] high = new double[num];
-        final double[] low = new double[num];
+        //final double[] high = new double[num];
+        //final double[] low = new double[num];
         final double[] close = new double[num];
-        final double[] volume = new double[num];
+        //final double[] volume = new double[num];
         // Fill up last array.
         for (int i = 0; i < num; i++) {
-            high[i] = chartDatas.get(i).highPrice;
-            low[i] = chartDatas.get(i).lowPrice;
+            //high[i] = chartDatas.get(i).highPrice;
+            //low[i] = chartDatas.get(i).lowPrice;
             close[i] = chartDatas.get(i).lastPrice;
-            volume[i] = chartDatas.get(i).volume;
+            //volume[i] = chartDatas.get(i).volume;
         }
 
         final double[] output = new double[bbands_allocationSize];
@@ -766,9 +766,6 @@ public class TechnicalAnalysis {
             series.add(new Day(new Date(chartDatas.get(i + outBegIdx.value).timestamp)), 
                     (up2_output[i]-down2_output[i])/central_output[i]);
         }
-
-        
-        
         return new TimeSeriesCollection(series);
     }
     
@@ -799,8 +796,8 @@ public class TechnicalAnalysis {
 
         core.stoch(0, last.length - 1, high, low, last, period.fastKPeriod, period.slowKPeriod, slowKMAType, period.slowDPeriod, slowDMAType, outBegIdx, outNbElement, outSlowK, outSlowD);
         
-        final TimeSeries slowKTimeSeries = new TimeSeries(name);
-        final TimeSeries slowDTimeSeries = new TimeSeries(name+" Signal");
+        final TimeSeries slowKTimeSeries = new TimeSeries(name+" %K");
+        final TimeSeries slowDTimeSeries = new TimeSeries(name+" %D");
         
         for (int i = 0; i < outNbElement.value; i++) {
             Day day = new Day(new Date(chartDatas.get(i + outBegIdx.value).timestamp));
@@ -811,6 +808,45 @@ public class TechnicalAnalysis {
         return Stochastics.ChartResult.newInstance(
                 new TimeSeriesCollection(slowKTimeSeries), 
                 new TimeSeriesCollection(slowDTimeSeries));
+    }
+    
+    public static XYDataset createOBV(List<ChartData> chartDatas, String name) {
+        /*if (period <= 0) {
+            throw new java.lang.IllegalArgumentException("period must be greater than 0");
+        }*/
+
+        final TimeSeries series = new TimeSeries(name);
+        final int num = chartDatas.size();
+
+        final Core core = new Core();
+        final int allocationSize = num - core.obvLookback();
+        if (allocationSize <= 0) {
+            return new TimeSeriesCollection(series);
+        }
+
+        //final double[] high = new double[num];
+        //final double[] low = new double[num];
+        final double[] close = new double[num];
+        final double[] volume = new double[num];
+        // Fill up last array.
+        for (int i = 0; i < num; i++) {
+            //high[i] = chartDatas.get(i).highPrice;
+            //low[i] = chartDatas.get(i).lowPrice;
+            close[i] = chartDatas.get(i).lastPrice;
+            volume[i] = chartDatas.get(i).volume;
+        }
+
+        final double[] output = new double[allocationSize];
+        final MInteger outBegIdx = new MInteger();
+        final MInteger outNbElement = new MInteger();
+
+        core.obv(0, num - 1, close, volume, outBegIdx, outNbElement, output);
+
+        for (int i = 0; i < outNbElement.value; i++) {
+            series.add(new Day(new Date(chartDatas.get(i + outBegIdx.value).timestamp)), output[i]);
+        }
+
+        return new TimeSeriesCollection(series);
     }
     
     /**
