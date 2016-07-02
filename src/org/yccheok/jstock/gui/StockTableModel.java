@@ -221,7 +221,16 @@ public class StockTableModel extends AbstractTableModelWithMemory implements CSV
     private List<Object> stockToList(Stock stock, StockAlert alert) {
         List<Object> list = new ArrayList<Object>();
         list.add(stock.code);
-        list.add(stock.symbol);
+        
+        AjaxYahooSearchEngine engine = new AjaxYahooSearchEngine();
+        String[] result = stock.code.toString().split("[:.:]");
+        String name;
+        final ResultType searchResult = engine.search(result[0]+".DE");
+        if(searchResult!=null) {
+            name = engine.search(result[0]+".DE").name;
+        } else name = stock.symbol.toString();
+        
+        list.add(name);
         list.add(stock.getPrevPrice());
         list.add(stock.getOpenPrice());
         list.add(stock.getLastPrice());
